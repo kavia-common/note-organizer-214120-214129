@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.db.database import engine
 from src.db.database import Base  # Declarative base
+from src.api.routes.notes import router as notes_router
+from src.api.routes.tags import router as tags_router
 
 openapi_tags = [
     {
@@ -50,3 +52,8 @@ def on_startup() -> None:
 def health_check():
     """Health endpoint that returns a simple status message."""
     return {"message": "Healthy"}
+
+
+# Include API routers under /api namespace
+app.include_router(notes_router)
+app.include_router(tags_router)
