@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.db.database import get_db
 from src.db.models import Tag
 from src.db.schemas import TagCreate, TagRead
+from src.api.realtime import broadcast_event
 
 router = APIRouter(prefix="/api/tags", tags=["tags"])
 
@@ -45,6 +46,12 @@ def create_tag(payload: TagCreate, db: Session = Depends(get_db)) -> TagRead:
     db.add(tag)
     db.commit()
     db.refresh(tag)
+    try:
+        payload_dict = TagRead.model_validate(tag).model_dump()
+        import asyncio
+        asyncio.create_task(broadcast_event("tag", "created", payload_dict))
+    except Exception:
+        pass
     return tag
 
 
@@ -64,4 +71,9 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
     db.delete(tag)
     db.commit()
+    try:
+        import asyncio
+        asyncio.create_task(broadcast_event("tag", "deleted", {"id": tag_id}))
+    except Exception:
+        pass
     return None

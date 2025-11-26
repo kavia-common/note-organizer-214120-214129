@@ -5,6 +5,7 @@ from src.db.database import engine
 from src.db.database import Base  # Declarative base
 from src.api.routes.notes import router as notes_router
 from src.api.routes.tags import router as tags_router
+from src.api.realtime import router as realtime_router
 
 openapi_tags = [
     {
@@ -18,6 +19,10 @@ openapi_tags = [
     {
         "name": "tags",
         "description": "Operations related to tags.",
+    },
+    {
+        "name": "realtime",
+        "description": "WebSocket real-time connection endpoints and documentation.",
     },
 ]
 
@@ -54,6 +59,36 @@ def health_check():
     return {"message": "Healthy"}
 
 
-# Include API routers under /api namespace
+# PUBLIC_INTERFACE
+@app.get(
+    "/realtime",
+    tags=["realtime"],
+    summary="Realtime WebSocket usage",
+    description="Describes how to connect to the WebSocket and sample events.",
+)
+def realtime_usage() -> dict:
+    """
+    Returns guidance on connecting to the WebSocket endpoint.
+
+    Returns:
+        Dict with fields:
+          - endpoint: ws path to connect
+          - sample_event: example payload pushed by the server
+          - notes: general notes on usage
+    """
+    return {
+        "endpoint": "/ws",
+        "sample_event": {
+            "type": "note.created",
+            "entity": "note",
+            "action": "created",
+            "payload": {"id": 1, "title": "Example", "content": "Body", "created_at": "...", "updated_at": "...", "tags": []},
+        },
+        "notes": "Connect using a WebSocket client to /ws; the server broadcasts note/tag events on create/update/delete.",
+    }
+
+
+# Include API routers under /api namespace and register websocket router at root
 app.include_router(notes_router)
 app.include_router(tags_router)
+app.include_router(realtime_router)

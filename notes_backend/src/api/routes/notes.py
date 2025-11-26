@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from src.db.database import get_db
 from src.db.models import Note, Tag, note_tags
 from src.db.schemas import NoteCreate, NoteRead, NoteUpdate
+from src.api.realtime import broadcast_event  # realtime broadcasting
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -135,6 +136,16 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)) -> NoteRead:
     db.refresh(note)
     # Ensure relationships loaded
     _ = note.tags
+    # Broadcast event
+    try:
+        # Create a response-like dict following NoteRead schema
+        payload_dict = NoteRead.model_validate(note).model_dump()
+        # Fire and forget
+        import asyncio
+        asyncio.create_task(broadcast_event("note", "created", payload_dict))
+    except Exception:
+        # Do not fail the request due to broadcast issues
+        pass
     return note
 
 
@@ -165,6 +176,12 @@ def update_note(note_id: int, payload: NoteUpdate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(note)
     _ = note.tags
+    try:
+        payload_dict = NoteRead.model_validate(note).model_dump()
+        import asyncio
+        asyncio.create_task(broadcast_event("note", "updated", payload_dict))
+    except Exception:
+        pass
     return note
 
 
@@ -186,6 +203,12 @@ def soft_delete_note(note_id: int, db: Session = Depends(get_db)) -> None:
         note.title = f"[TRASH] {note.title}"
     db.add(note)
     db.commit()
+    try:
+        import asyncio
+        # return minimal payload to indicate which id changed
+        asyncio.create_task(broadcast_event("note", "deleted", {"id": note_id}))
+    except Exception:
+        pass
     return None
 
 
@@ -218,6 +241,12 @@ def archive_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
     db.commit()
     db.refresh(note)
     _ = note.tags
+    try:
+        payload_dict = NoteRead.model_validate(note).model_dump()
+        import asyncio
+        asyncio.create_task(broadcast_event("note", "updated", payload_dict))
+    except Exception:
+        pass
     return note
 
 
@@ -241,6 +270,12 @@ def restore_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
     db.commit()
     db.refresh(note)
     _ = note.tags
+    try:
+        payload_dict = NoteRead.model_validate(note).model_dump()
+        import asyncio
+        asyncio.create_task(broadcast_event("note", "updated", payload_dict))
+    except Exception:
+        pass
     return note
 
 
@@ -265,4 +300,10 @@ def pin_toggle_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
     db.commit()
     db.refresh(note)
     _ = note.tags
+    try:
+        payload_dict = NoteRead.model_validate(note).model_dump()
+        import asyncio
+        asyncio.create_task(broadcast_event("note", "updated", payload_dict))
+    except Exception:
+        pass
     return note
