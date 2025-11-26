@@ -33,12 +33,21 @@ app = FastAPI(
     openapi_tags=openapi_tags,
 )
 
+# Explicitly allow local frontend origin and include common WebSocket upgrade headers
+# Note: Starlette's CORS does not govern WebSocket connections (the browser does not
+# enforce CORS on WS the same way), but allowing upgrade headers helps with proxies.
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    # Keep wildcard permissive during dev if proxies or other tools are used
+    "*",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "Upgrade", "Connection", "Sec-WebSocket-Protocol"],
 )
 
 
@@ -55,8 +64,20 @@ def on_startup() -> None:
 
 @app.get("/", tags=["health"], summary="Health Check")
 def health_check():
-    """Health endpoint that returns a simple status message."""
-    return {"message": "Healthy"}
+    """Health endpoint that returns a simple status message and a smoke test checklist."""
+    return {
+        "message": "Healthy",
+        "smoke_test": {
+            "api_base": "http://localhost:3001",
+            "frontend_base": "http://localhost:3000",
+            "steps": [
+                "1) POST http://localhost:3001/api/notes with {\"title\":\"Test Note\",\"content\":\"Hello\"}",
+                "2) GET http://localhost:3001/api/notes and verify the created note appears",
+                "3) Open WebSocket ws://localhost:3001/ws and create another note to see a note.created event",
+                "4) From frontend, set REACT_APP_API_URL=http://localhost:3001 and ensure notes list renders"
+            ]
+        }
+    }
 
 
 # PUBLIC_INTERFACE

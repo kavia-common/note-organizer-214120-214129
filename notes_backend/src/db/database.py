@@ -39,6 +39,7 @@ def _engine_kwargs_for_url(url: str) -> dict:
 
 # Create engine and session factory using SQLAlchemy 2.x style
 DATABASE_URL = _get_database_url()
+# Example default if env not set: sqlite:///./notes.db (file adjacent to app root)
 engine = create_engine(DATABASE_URL, echo=False, future=True, **_engine_kwargs_for_url(DATABASE_URL))
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, class_=Session)
 
